@@ -1,4 +1,5 @@
 import React from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { FitnessProvider, useFitness } from './context/FitnessContext';
 import { Sidebar } from './components/common/Sidebar';
 import { Navbar } from './components/common/Navbar';
@@ -10,6 +11,8 @@ import { AddActivityPage } from './pages/AddActivityPage';
 import { ProgressPage } from './pages/ProgressPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { GoalsPage } from './pages/GoalsPage';
+import { LoginPage } from './pages/LoginPage';
+import { SignUpPage } from './pages/SignUpPage';
 
 const AppContent: React.FC = () => {
   const { activeTab, setActiveTab, toasts, removeToast } = useFitness();
@@ -56,11 +59,25 @@ const AppContent: React.FC = () => {
   );
 };
 
-export function App() {
+const MainRouter: React.FC = () => {
+  const { isAuthenticated, authView } = useAuth();
+
+  if (!isAuthenticated) {
+    return authView === 'signup' ? <SignUpPage /> : <LoginPage />;
+  }
+
   return (
     <FitnessProvider>
       <AppContent />
     </FitnessProvider>
+  );
+};
+
+export function App() {
+  return (
+    <AuthProvider>
+      <MainRouter />
+    </AuthProvider>
   );
 }
 

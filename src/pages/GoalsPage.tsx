@@ -156,6 +156,14 @@ export const GoalsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Goal Disclaimer Alert */}
+      <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-slate-800/80 flex items-start gap-3 text-xs text-slate-400">
+        <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+        <p>
+          <strong className="text-slate-300">Application Notice:</strong> The daily targets above (10,000 steps, 500 kcal, 60 min workout, 3.0 L water, 8.0 hrs sleep) are customizable application goals designed for personal tracking and motivation, and should not be considered universal medical or clinical recommendations.
+        </p>
+      </div>
+
       {isEditing && (
         <div className="glass-panel rounded-2xl p-6 border border-emerald-500/30 bg-gradient-to-br from-slate-900/90 to-emerald-950/20 shadow-2xl animate-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between mb-4">

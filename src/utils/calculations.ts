@@ -45,24 +45,33 @@ export function groupActivitiesByDate(activities: Activity[]): Map<string, Daily
 
 /**
  * Calculate metrics for today against current goals
+ * If healthConnectSteps is provided and valid, it replaces manually entered steps
  */
-export function calculateTodayMetrics(activities: Activity[], goals: FitnessGoals): TodayMetrics {
+export function calculateTodayMetrics(
+  activities: Activity[],
+  goals: FitnessGoals,
+  healthConnectSteps?: number | null
+): TodayMetrics {
   const todayStr = getTodayDateString();
   const todayActivities = activities.filter((a) => a.date === todayStr);
 
-  let steps = 0;
+  let manualSteps = 0;
   let calories = 0;
   let workoutDuration = 0;
   let water = 0;
   let sleep = 0;
 
   for (const act of todayActivities) {
-    steps += Number(act.steps) || 0;
+    manualSteps += Number(act.steps) || 0;
     calories += Number(act.calories) || 0;
     workoutDuration += Number(act.duration) || 0;
     water += Number(act.water) || 0;
     sleep = Math.max(sleep, Number(act.sleep) || 0);
   }
+
+  const isHealthConnectActive = typeof healthConnectSteps === 'number' && !isNaN(healthConnectSteps);
+  const steps = isHealthConnectActive ? healthConnectSteps : manualSteps;
+  const stepsSource: 'health_connect' | 'manual' = isHealthConnectActive ? 'health_connect' : 'manual';
 
   water = Math.round(water * 10) / 10;
 
@@ -80,13 +89,18 @@ export function calculateTodayMetrics(activities: Activity[], goals: FitnessGoal
     waterPercent: Math.round((water / safeGoal(goals.water, 3.0)) * 100),
     sleepPercent: Math.round((sleep / safeGoal(goals.sleep, 8.0)) * 100),
     activitiesCount: todayActivities.length,
+    stepsSource,
   };
 }
 
 /**
  * Get weekly chart data for Monday through Sunday of the current week
+ * Optionally overlays Health Connect daily steps
  */
-export function getWeeklyChartData(activities: Activity[]): Array<{
+export function getWeeklyChartData(
+  activities: Activity[],
+  healthConnectDailySteps?: Record<string, number>
+): Array<{
   date: string;
   day: string;
   fullDay: string;
@@ -96,6 +110,7 @@ export function getWeeklyChartData(activities: Activity[]): Array<{
   water: number;
   sleep: number;
   hasActivity: boolean;
+  stepsSource: 'health_connect' | 'manual';
 }> {
   const grouped = groupActivitiesByDate(activities);
   const now = new Date();
@@ -120,17 +135,21 @@ export function getWeeklyChartData(activities: Activity[]): Array<{
     const dateStr = `${year}-${month}-${day}`;
 
     const summary = grouped.get(dateStr);
+    const manualSteps = summary ? summary.steps : 0;
+    const hasHcSteps = Boolean(healthConnectDailySteps && typeof healthConnectDailySteps[dateStr] === 'number');
+    const steps = hasHcSteps ? (healthConnectDailySteps![dateStr]) : manualSteps;
 
     weekData.push({
       date: dateStr,
       day: shortDays[i],
       fullDay: daysOrder[i],
-      steps: summary ? summary.steps : 0,
+      steps,
       calories: summary ? summary.calories : 0,
       workoutDuration: summary ? summary.workoutDuration : 0,
       water: summary ? summary.water : 0,
       sleep: summary ? summary.sleep : 0,
-      hasActivity: Boolean(summary && summary.activitiesCount > 0),
+      hasActivity: Boolean((summary && summary.activitiesCount > 0) || steps > 0),
+      stepsSource: hasHcSteps ? ('health_connect' as const) : ('manual' as const),
     });
   }
 
@@ -142,9 +161,10 @@ export function getWeeklyChartData(activities: Activity[]): Array<{
  */
 export function calculateWeeklyAnalytics(
   activities: Activity[],
-  _goals?: FitnessGoals
+  _goals?: FitnessGoals,
+  healthConnectDailySteps?: Record<string, number>
 ): WeeklyAnalytics {
-  const weekData = getWeeklyChartData(activities);
+  const weekData = getWeeklyChartData(activities, healthConnectDailySteps);
   
   let totalSteps = 0;
   let totalCalories = 0;

@@ -8,9 +8,11 @@ import {
   Flame,
   Activity,
   RotateCcw,
+  LogOut,
 } from 'lucide-react';
 import type { NavigationTab } from '../../types/fitness';
 import { useFitness } from '../../context/FitnessContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   activeTab: NavigationTab;
@@ -19,6 +21,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const { weeklyAnalytics, resetSampleData } = useFitness();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { id: 'dashboard' as NavigationTab, label: 'Dashboard', icon: LayoutDashboard },
@@ -27,6 +30,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     { id: 'history' as NavigationTab, label: 'Activity History', icon: History },
     { id: 'goals' as NavigationTab, label: 'Goals', icon: Target },
   ];
+
+  // Derive initials from user name
+  const initials = user?.name
+    ? user.name
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'U';
+
+  const avatarGradient = user?.avatarColor || 'from-cyan-500 to-blue-600';
 
   return (
     <aside className="hidden lg:flex flex-col w-64 xl:w-72 shrink-0 border-r border-slate-800/80 bg-slate-950/70 backdrop-blur-xl h-screen sticky top-0 p-5 select-none z-30">
@@ -96,29 +111,41 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
         </div>
       </div>
 
-      {/* User Profile Section */}
+      {/* User Profile & Logout Section */}
       <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
-            VK
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${avatarGradient} flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0`}>
+            {initials}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-white truncate">Venkat K.</div>
-            <div className="text-[11px] text-emerald-400 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Personal Plan</span>
+            <div className="text-sm font-semibold text-white truncate" title={user?.name}>
+              {user?.name || 'User'}
+            </div>
+            <div className="text-[11px] text-slate-400 truncate" title={user?.email}>
+              {user?.email || 'Logged in'}
             </div>
           </div>
         </div>
 
-        <button
-          onClick={resetSampleData}
-          title="Reset to sample data"
-          className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-900 rounded-lg transition-colors"
-          aria-label="Reset demo sample data"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={resetSampleData}
+            title="Reset to sample data"
+            className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-900 rounded-lg transition-colors"
+            aria-label="Reset demo sample data"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={logout}
+            title="Log Out"
+            className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+            aria-label="Log out of account"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </aside>
   );

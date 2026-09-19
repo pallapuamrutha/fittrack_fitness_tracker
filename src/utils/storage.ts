@@ -1,12 +1,6 @@
 import type { Activity, FitnessGoals, WorkoutType } from '../types/fitness';
 import { getDayOffsetDateString } from './formatters';
 
-const STORAGE_KEYS = {
-  ACTIVITIES: 'fittrack_activities_v1',
-  GOALS: 'fittrack_goals_v1',
-  SEEDED: 'fittrack_seeded_v1',
-};
-
 export const DEFAULT_GOALS: FitnessGoals = {
   steps: 10000,
   calories: 500,
@@ -15,8 +9,36 @@ export const DEFAULT_GOALS: FitnessGoals = {
   sleep: 8.0,
 };
 
-export function generateSampleActivities(): Activity[] {
-  const samples: Array<{
+export const USER_B_GOALS: FitnessGoals = {
+  steps: 6000,
+  calories: 350,
+  workoutDuration: 45,
+  water: 2.0,
+  sleep: 8.0,
+};
+
+// User-scoped storage keys
+export function getActivitiesKey(userId: string): string {
+  return `fittrack_data_${userId}`;
+}
+
+export function getGoalsKey(userId: string): string {
+  return `fittrack_goals_${userId}`;
+}
+
+export function getSeededKey(userId: string): string {
+  return `fittrack_seeded_${userId}`;
+}
+
+/**
+ * Generates user-specific sample activities to demonstrate data isolation
+ * User A: ~9,000 steps, ~450 kcal, 2.5 L water, 7.5 hrs sleep
+ * User B: ~5,000 steps, ~300 kcal, 1.5 L water, 8.0 hrs sleep
+ */
+export function generateSampleActivities(userId: string = 'user_alex_01'): Activity[] {
+  const isUserB = userId === 'user_sarah_02';
+
+  const samplesUserA: Array<{
     dayOffset: number;
     steps: number;
     workoutType: WorkoutType;
@@ -88,18 +110,102 @@ export function generateSampleActivities(): Activity[] {
     },
     {
       dayOffset: 0,
-      steps: 8540,
+      steps: 9000,
       workoutType: 'Running',
       duration: 45,
-      calories: 350,
-      water: 2.0,
-      sleep: 7.5,
-      notes: 'Today morning interval run. Feeling focused and consistent!',
+      calories: 450,
+      water: 2.5,
+      sleep: 7.0,
+      notes: 'Tempo run. Hit target pace and hydration goal!',
     },
   ];
 
-  return samples.map((sample, index) => ({
-    id: `sample-${index + 1}-${Date.now()}`,
+  const samplesUserB: Array<{
+    dayOffset: number;
+    steps: number;
+    workoutType: WorkoutType;
+    duration: number;
+    calories: number;
+    water: number;
+    sleep: number;
+    notes: string;
+  }> = [
+    {
+      dayOffset: -6,
+      steps: 4800,
+      workoutType: 'Walking',
+      duration: 30,
+      calories: 210,
+      water: 1.5,
+      sleep: 8.0,
+      notes: 'Morning walk in neighborhood.',
+    },
+    {
+      dayOffset: -5,
+      steps: 5300,
+      workoutType: 'Yoga',
+      duration: 35,
+      calories: 240,
+      water: 1.8,
+      sleep: 8.5,
+      notes: 'Relaxing restorative yoga session.',
+    },
+    {
+      dayOffset: -4,
+      steps: 4600,
+      workoutType: 'Walking',
+      duration: 25,
+      calories: 190,
+      water: 1.4,
+      sleep: 7.8,
+      notes: 'Light afternoon stroll.',
+    },
+    {
+      dayOffset: -3,
+      steps: 5800,
+      workoutType: 'Cycling',
+      duration: 30,
+      calories: 310,
+      water: 1.6,
+      sleep: 8.2,
+      notes: 'Stationary bike cardio.',
+    },
+    {
+      dayOffset: -2,
+      steps: 5100,
+      workoutType: 'Walking',
+      duration: 35,
+      calories: 230,
+      water: 1.5,
+      sleep: 8.0,
+      notes: 'Evening park walk with dog.',
+    },
+    {
+      dayOffset: -1,
+      steps: 4950,
+      workoutType: 'Swimming',
+      duration: 30,
+      calories: 280,
+      water: 1.7,
+      sleep: 8.0,
+      notes: 'Casual pool laps and relaxation.',
+    },
+    {
+      dayOffset: 0,
+      steps: 5000,
+      workoutType: 'Walking',
+      duration: 35,
+      calories: 300,
+      water: 1.5,
+      sleep: 8.0,
+      notes: 'Active commute and brisk walking.',
+    },
+  ];
+
+  const source = isUserB ? samplesUserB : samplesUserA;
+
+  return source.map((sample, index) => ({
+    id: `act-${userId}-${index + 1}-${Date.now()}`,
     date: getDayOffsetDateString(sample.dayOffset),
     steps: sample.steps,
     workoutType: sample.workoutType,
@@ -112,16 +218,26 @@ export function generateSampleActivities(): Activity[] {
   }));
 }
 
-export function getStoredActivities(): Activity[] {
+export function getStoredActivities(userId: string = 'default'): Activity[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.ACTIVITIES);
-    const hasSeeded = localStorage.getItem(STORAGE_KEYS.SEEDED);
+    const key = getActivitiesKey(userId);
+    const seededKey = getSeededKey(userId);
+    const raw = localStorage.getItem(key);
+    const hasSeeded = localStorage.getItem(seededKey);
 
+    // Initial seed for demo users
     if (!raw && !hasSeeded) {
-      const initial = generateSampleActivities();
-      localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(initial));
-      localStorage.setItem(STORAGE_KEYS.SEEDED, 'true');
-      return initial;
+      // Demo users get distinct starting data
+      if (userId === 'user_alex_01' || userId === 'user_sarah_02' || userId === 'default') {
+        const initial = generateSampleActivities(userId);
+        localStorage.setItem(key, JSON.stringify(initial));
+        localStorage.setItem(seededKey, 'true');
+        return initial;
+      }
+      // New custom signed-up users start clean
+      localStorage.setItem(key, JSON.stringify([]));
+      localStorage.setItem(seededKey, 'true');
+      return [];
     }
 
     if (!raw) {
@@ -137,9 +253,10 @@ export function getStoredActivities(): Activity[] {
 }
 
 export function saveActivityToStorage(
-  activityData: Omit<Activity, 'id' | 'createdAt'>
+  activityData: Omit<Activity, 'id' | 'createdAt'>,
+  userId: string = 'default'
 ): Activity {
-  const current = getStoredActivities();
+  const current = getStoredActivities(userId);
   const newActivity: Activity = {
     ...activityData,
     id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -147,16 +264,17 @@ export function saveActivityToStorage(
   };
 
   const updated = [newActivity, ...current];
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
-  localStorage.setItem(STORAGE_KEYS.SEEDED, 'true');
+  localStorage.setItem(getActivitiesKey(userId), JSON.stringify(updated));
+  localStorage.setItem(getSeededKey(userId), 'true');
   return newActivity;
 }
 
 export function updateActivityInStorage(
   id: string,
-  updates: Partial<Omit<Activity, 'id' | 'createdAt'>>
+  updates: Partial<Omit<Activity, 'id' | 'createdAt'>>,
+  userId: string = 'default'
 ): Activity | null {
-  const current = getStoredActivities();
+  const current = getStoredActivities(userId);
   const index = current.findIndex((a) => a.id === id);
   if (index === -1) return null;
 
@@ -166,33 +284,36 @@ export function updateActivityInStorage(
   };
 
   current[index] = updatedActivity;
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(current));
+  localStorage.setItem(getActivitiesKey(userId), JSON.stringify(current));
   return updatedActivity;
 }
 
-export function deleteActivityFromStorage(id: string): boolean {
-  const current = getStoredActivities();
+export function deleteActivityFromStorage(id: string, userId: string = 'default'): boolean {
+  const current = getStoredActivities(userId);
   const filtered = current.filter((a) => a.id !== id);
   if (filtered.length === current.length) return false;
 
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(filtered));
+  localStorage.setItem(getActivitiesKey(userId), JSON.stringify(filtered));
   return true;
 }
 
-export function getStoredGoals(): FitnessGoals {
+export function getStoredGoals(userId: string = 'default'): FitnessGoals {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.GOALS);
+    const key = getGoalsKey(userId);
+    const raw = localStorage.getItem(key);
+    const fallback = userId === 'user_sarah_02' ? USER_B_GOALS : DEFAULT_GOALS;
+
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(DEFAULT_GOALS));
-      return DEFAULT_GOALS;
+      localStorage.setItem(key, JSON.stringify(fallback));
+      return fallback;
     }
     const parsed = JSON.parse(raw);
     return {
-      steps: parsed.steps || DEFAULT_GOALS.steps,
-      calories: parsed.calories || DEFAULT_GOALS.calories,
-      workoutDuration: parsed.workoutDuration || DEFAULT_GOALS.workoutDuration,
-      water: parsed.water || DEFAULT_GOALS.water,
-      sleep: parsed.sleep || DEFAULT_GOALS.sleep,
+      steps: parsed.steps || fallback.steps,
+      calories: parsed.calories || fallback.calories,
+      workoutDuration: parsed.workoutDuration || fallback.workoutDuration,
+      water: parsed.water || fallback.water,
+      sleep: parsed.sleep || fallback.sleep,
     };
   } catch (error) {
     console.error('Failed to load goals from LocalStorage:', error);
@@ -200,23 +321,24 @@ export function getStoredGoals(): FitnessGoals {
   }
 }
 
-export function saveGoalsToStorage(goals: FitnessGoals): void {
+export function saveGoalsToStorage(goals: FitnessGoals, userId: string = 'default'): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals));
+    localStorage.setItem(getGoalsKey(userId), JSON.stringify(goals));
   } catch (error) {
     console.error('Failed to save goals to LocalStorage:', error);
   }
 }
 
-export function resetToDemoData(): Activity[] {
-  const samples = generateSampleActivities();
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(samples));
-  localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(DEFAULT_GOALS));
-  localStorage.setItem(STORAGE_KEYS.SEEDED, 'true');
+export function resetToDemoData(userId: string = 'default'): Activity[] {
+  const samples = generateSampleActivities(userId);
+  const goals = userId === 'user_sarah_02' ? USER_B_GOALS : DEFAULT_GOALS;
+  localStorage.setItem(getActivitiesKey(userId), JSON.stringify(samples));
+  localStorage.setItem(getGoalsKey(userId), JSON.stringify(goals));
+  localStorage.setItem(getSeededKey(userId), 'true');
   return samples;
 }
 
-export function clearAllStoredActivities(): void {
-  localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify([]));
-  localStorage.setItem(STORAGE_KEYS.SEEDED, 'true');
+export function clearAllStoredActivities(userId: string = 'default'): void {
+  localStorage.setItem(getActivitiesKey(userId), JSON.stringify([]));
+  localStorage.setItem(getSeededKey(userId), 'true');
 }

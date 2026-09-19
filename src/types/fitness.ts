@@ -55,6 +55,7 @@ export interface TodayMetrics {
   waterPercent: number;
   sleepPercent: number;
   activitiesCount: number;
+  stepsSource?: 'health_connect' | 'manual';
 }
 
 export interface WeeklyAnalytics {
